@@ -1,12 +1,8 @@
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <U8g2lib.h>
 
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+U8G2_SH1106_128X64_NONAME_F_HW_I2C display(U8G2_R0, U8X8_PIN_NONE);
 
-// Pins
 const int trigpin = 7;
 const int echopin = 8;
 
@@ -28,60 +24,49 @@ void setup() {
   pinMode(led3, OUTPUT);
   pinMode(buzzer, OUTPUT);
 
-  // Start OLED
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println("OLED not found");
-    while (true);
-  }
-
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setTextColor(WHITE);
+  display.begin();
 }
 
 void loop() {
   long duration, cm;
 
-  // ---- Trigger ultrasonic ----
   digitalWrite(trigpin, LOW);
   delayMicroseconds(2);
   digitalWrite(trigpin, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigpin, LOW);
 
-  duration = pulseIn(echopin, HIGH);
+  duration = pulseIn(echopin, HIGH, 30000);
   cm = microsecondsToCentimeters(duration);
 
-  // ---- SERIAL MONITOR ----
   Serial.print("Distance: ");
   Serial.print(cm);
   Serial.println(" cm");
 
-  // ---- OLED DISPLAY ----
-  display.clearDisplay();
-  display.setCursor(0, 0);
+  display.clearBuffer();
+  display.setFont(u8g2_font_ncenB14_tr);
+
+  display.setCursor(0, 20);
   display.print("Distance");
-  display.setCursor(0, 30);
+
+  display.setCursor(0, 50);
   display.print(cm);
   display.print(" cm");
-  display.display();
 
-  // Turn everything OFF first
+  display.sendBuffer();
+
   digitalWrite(led1, LOW);
   digitalWrite(led2, LOW);
   digitalWrite(led3, LOW);
   noTone(buzzer);
 
-  // ---- LEDs + BUZZER WITH BUFFER ----
   if (cm < 5 && lastCm <= 7) {
-    // Very close
     digitalWrite(led1, HIGH);
     digitalWrite(led2, HIGH);
     digitalWrite(led3, HIGH);
-    tone(buzzer, 2000);   // continuous sound
+    tone(buzzer, 2000);
   }
   else if (cm < 10 && lastCm <= 12) {
-    // Medium close
     digitalWrite(led1, HIGH);
     digitalWrite(led2, HIGH);
 
@@ -91,7 +76,6 @@ void loop() {
     delay(100);
   }
   else if (cm < 20 && lastCm <= 22) {
-    // Far close
     digitalWrite(led1, HIGH);
 
     tone(buzzer, 1000);
@@ -104,7 +88,7 @@ void loop() {
   delay(50);
 }
 
-// ---- Distance conversion ----
 long microsecondsToCentimeters(long microseconds) {
+  if (microseconds == 0) return 999;
   return microseconds / 29 / 2;
 }
